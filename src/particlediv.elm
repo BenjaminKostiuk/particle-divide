@@ -9,7 +9,7 @@ import Random
 type Msg = Tick Float GetKeyState
          | MakeRequest Browser.UrlRequest
          | UrlChange Url.Url
-         | GenerateParticles (List (Float, Float))  -- Generate a list of random particles
+         | GenerateParticles (List ((Float, Float), (Float, Float)))  -- Generate a list of random particles
          | OnBtn Int        -- Hover over button
          | OffBtn Int       -- Stop hovering a button
          | LoadLevel Int    -- Go to the next level
@@ -18,36 +18,40 @@ type Msg = Tick Float GetKeyState
          | GetMousePos (Float, Float)   -- Get the current mouse position
          | AddClick (Float, Float)      -- Add a click to the list of clicks during the level
 -- Model
-type alias Model = { particles : List Particle, particleColor : Color, quantity : Int, speed : Float,
-                    pos : (Float, Float), clicks : List (Float, Float), level : Int,
+type alias Model = { particles : List Particle, particleColor : Color, 
+                    pos : (Float, Float), clicks : List (Float, Float), 
+                    -- Information for levels
+                    level : Int, speed : Float, quantity : Int, margin : Int,
                     -- Transparency levels for buttons (for onHover)
-                    transBtn1 : Float, transBtn2 : Float, transBtn3 : Float,
-                    -- Keep track of screen
-                    mainMenu : Bool, levelEnd : Bool, tutorial : Bool, activeLevel : Bool }
+                    transBtn1 : Float, transBtn2 : Float,
+                    -- Keep track of user position
+                    mainMenu : Bool, levelEnd : Bool, activeLevel : Bool }
 
-type Particle = Particle (Float, Float) (Float, Float)
 -- Particle (PosX, PosY) (dX, dY)
+type Particle = Particle (Float, Float) (Float, Float)
 
 init : () -> Url.Url -> Key -> ( Model, Cmd Msg )
-init flags url key = ( { particles = [], particleColor = lightOrange, quantity = 10, speed = 1.5, 
-                        pos = (0, 0), clicks = [], level = 0,
-                        transBtn1 = 0.7, transBtn2 = 0.7, transBtn3 = 0.7,
-                        mainMenu = True, levelEnd = False, tutorial = False, activeLevel = False } , Random.generate GenerateParticles (genParticles 15 2.5))
+init flags url key = ( { particles = [], particleColor = lightBlue, quantity = 200, speed = 1.3, 
+                        pos = (0, 0), clicks = [], level = 0, margin = 21,
+                        transBtn1 = 0.7, transBtn2 = 0.7,
+                        mainMenu = True, levelEnd = False, activeLevel = False } , Random.generate GenerateParticles (genParticles 15 2.5 "centered"))
 
 -- Generate n number of particles moving at a speed
-genParticles : Int -> Float -> Random.Generator (List (Float, Float))
-genParticles n speed = Random.list n 
+genParticles : Int -> Float -> String -> Random.Generator (List ((Float, Float), (Float, Float)))
+genParticles n speed option = Random.list n 
     ((Random.map3 
-        (\dx sx sy ->
+        (\dx sy x ->
             let 
+                -- Compute dy direction
                 dy = sqrt(speed^2 - dx^2)
-            in case (sx, sy) of
-                    (0,0) -> (dx,dy)
-                    (0,1) -> (dx,-dy)
-                    (1,0) -> (-dx,dy)
-                    (_,_) -> (-dx,-dy))
+                posX = if option == "centered" then 0 else x
+                posY = if option == "centered" then 0 else sqrt(15^2 - x^2)
+                --return the particle with given coordinates and directions
+            in case sy of
+                    0 -> ((posX,posY),(dx,dy))
+                    _ -> ((posX,posY),(dx,-dy)))
           -- Generate a dx and position sign for dx and dy
-         (Random.float 0 speed) (Random.int 0 1) (Random.int 0 1)))
+         (Random.float -speed speed) (Random.int 0 1) (Random.float -15 15)))
         
 -- Update the position of all particles in model.particules
 updateParticles : Particle -> Particle
@@ -88,7 +92,7 @@ getLineEquation model =
         Nothing -> (0,0)
 
 -- Calculate the score after the user has drawn a line,
---  returns (Percentage Error, (#particles above line, #Particles below line))
+--  returns (Percentage Error, (#Particles above line, #Particles below line))
 calculateScore : Model -> (Int, (Int, Int))
 calculateScore model = 
     let
@@ -115,27 +119,31 @@ update msg model =
            ( model, Cmd.none )
 
         GenerateParticles coordinates ->
-            ( { model | particles = List.map (\(dx, dy) -> Particle (0, 0) (dx, dy)) coordinates }, Cmd.none )
+            ( { model | particles = List.map (\((x,y),(dx, dy)) -> Particle (x, y) (dx, dy)) coordinates }, Cmd.none )
         -- On Hover
         OnBtn id ->
             ( { model | transBtn1 = if id == 1 then 1.0 else model.transBtn1, 
-                        transBtn2 = if id == 2 then 1.0 else model.transBtn2,
-                        transBtn3 = if id == 3 then 1.0 else model.transBtn3 }, Cmd.none)
+                        transBtn2 = if id == 2 then 1.0 else model.transBtn2 }, Cmd.none)
         -- Off Hover
         OffBtn id ->
             ( { model | transBtn1 = if id == 1 then 0.7 else model.transBtn1,
-                        transBtn2 = if id == 2 then 0.7 else model.transBtn2,
-                        transBtn3 = if id == 3 then 0.7 else model.transBtn3 }, Cmd.none)
+                        transBtn2 = if id == 2 then 0.7 else model.transBtn2 }, Cmd.none)
         -- Load the next level given an increment -> 1 for next level, 0 to try again
         LoadLevel increment -> 
             ( { model | mainMenu = False, levelEnd = False, activeLevel = True, 
             transBtn1 = 0.7, transBtn2 = 0.7, level = model.level + increment,
-            quantity = round (3 * toFloat (model.level) * sqrt(toFloat model.level) + 10), clicks = [] },
-            Random.generate GenerateParticles (genParticles model.quantity model.speed))
+            quantity = let
+                            n = round (400 / toFloat (model.level + 1) - 4)
+                        in (if modBy 2 n == 0 then n else n + 1),
+            speed = if increment == 1 then 1.5 + 0.2 * toFloat model.level else model.speed, 
+            margin = if increment == 1 then (if model.margin <= 0 then 0 else model.margin - 1) else model.margin,
+            clicks = [] },
+            Random.generate GenerateParticles (genParticles model.quantity model.speed "random"))
         
         GoToMainMenu ->
             ( { model | mainMenu = True, levelEnd = False, activeLevel = False, level = 0,
-            transBtn1 = 0.7, transBtn2 = 0.7, transBtn3 = 0.7, clicks = [] } , Random.generate GenerateParticles (genParticles 15 2.5))
+            speed = 1.3, margin = 21, quantity = 200,
+            transBtn1 = 0.7, transBtn2 = 0.7, clicks = [] } , Random.generate GenerateParticles (genParticles 15 2.5 "centered"))
 
         ChangeColor ->
             ( changeModelColor model , Cmd.none )
@@ -166,12 +174,12 @@ standardBtn content transparency = union (roundedRect 100 30 2.5
         |> makeTransparent transparency)
 
 -- Create a stantard text Shape with a custom template
-standardText : String -> Float -> Float -> Shape Msg
-standardText message fontSize yPos = text message
+standardText : String -> Float -> Color -> Float -> Shape Msg
+standardText message fontSize textColor yPos = text message
         |> customFont "Trebuchet MS" 
         |> size fontSize
         |> centered
-        |> filled black
+        |> filled textColor
         |> move(0,yPos)
 
 -- Draw all parts of the line draw
@@ -199,11 +207,15 @@ levelEndShapes model =
     case calculateScore model of
         (percent, (above, below)) -> union
             -- Create the text displaying results according to error percentage
-            (standardText ("You were " ++ (String.fromInt percent) ++ "% off, " ++ (String.fromInt above) ++ " - " ++ (String.fromInt below)) 25 100)
-            (standardText ("Level " ++ String.fromInt (model.level) ++ if percent <= 20 then " Complete!" else " Failed!") 15 75)
+            (standardText 
+                ("You were " ++ (String.fromInt percent) ++ "% off"
+                    ++ (if percent > model.margin then ", you need to be at most " ++ (String.fromInt model.margin) ++ "% off." else "")) 25 black 100)
+            (standardText ("Ratio : " ++ (String.fromInt above) ++ " - " ++ (String.fromInt below)) 20 blue 75)
+            |> union (standardText ("Level " ++ String.fromInt (model.level) ++ (if percent <= model.margin then " Complete!" else " Failed!")) 30
+                (if percent <= model.margin then green else red ) 130)
             |> union
                 -- Create a button for "try again" or "next level" 
-                ((if percent <= 20 then
+                ((if percent <= model.margin then
                 (standardBtn "Next Level" model.transBtn1)
                 |> notifyTap (LoadLevel 1)
                 else
@@ -219,23 +231,19 @@ view model =
   let 
     title = "ParticleDivide"
     -- Message for main menu
-    mainMenuMessage = union (standardText "Welcome to Particle Divide!" 25 100)
-        (standardText "Created by Benjamin Kostiuk" 13 75)
+    mainMenuMessage = union (standardText "Welcome to Particle Divide!" 25 black 100)
+        (standardText "Created by Benjamin Kostiuk" 13 black 75)
     -- Buttons for main menu
     mainMenuButtons = union ((standardBtn "Start Game" model.transBtn1)
-        |> move (-120,30)
+        |> move (-60,30)
         |> notifyEnter (OnBtn 1)
         |> notifyLeave (OffBtn 1)
         |> notifyTap (LoadLevel 1))
-        ( union ((standardBtn "Tutorial" model.transBtn2)
-        |> move (120,30)
+        ((standardBtn "Change Color" model.transBtn2)
+        |> move (60,30)
         |> notifyEnter (OnBtn 2)
-        |> notifyLeave (OffBtn 2))
-        ((standardBtn "Change Color" model.transBtn3)
-        |> move (0,30)
-        |> notifyEnter (OnBtn 3)
-        |> notifyLeave (OffBtn 3)
-        |> notifyTap ChangeColor))
+        |> notifyLeave (OffBtn 2)
+        |> notifyTap ChangeColor)
     -- Buttons and message for end of level
     levelEndBtnAndMsg = levelEndShapes model
     -- Button for back to main menu
@@ -244,11 +252,10 @@ view model =
         |> notifyEnter (OnBtn 2)
         |> notifyLeave (OffBtn 2)
         |> notifyTap GoToMainMenu
-    -- Transparent backdrop to capture 
+    -- Transparent backdrop
     backdrop = rect 750 500
         |> filled white
         |> makeTransparent 0
-        |> notifyTap GoToMainMenu
         |> notifyMouseMoveAt (\(x,y) -> GetMousePos (x,y))
         |> notifyMouseDownAt (\(x,y) -> AddClick (x,y))
 
@@ -271,4 +278,4 @@ main = appWithTick Tick
        , subscriptions = subscriptions
        , onUrlRequest = MakeRequest
        , onUrlChange = UrlChange
-       }  
+       } 
