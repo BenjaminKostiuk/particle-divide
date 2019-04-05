@@ -15,6 +15,8 @@ Can you make it past level 20? [Try for yourself!](https://benjaminkostiuk.githu
 
 
 The code for _Particle Divide_ can be found in _src/_ folder
+
+
 If you want to export the elm file as .html then run ```elm make src/particledivide.elm --output nameOfFile.html```
 
 ### How To Play
