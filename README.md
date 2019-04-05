@@ -1,19 +1,21 @@
 # Elm App : Particle Divide!
 Can you divide the particles equally in this fun Elm app made with the [Graphic SVG Package](https://package.elm-lang.org/packages/MacCASOutreach/graphicsvg/latest/GraphicSVG)?
 
-Can you make it past level 20? [Try for yourself!](https://mac1xa3.ca/u/kostiukb/particledivide.html)
+Can you make it past level 20? [Try for yourself!](https://benjaminkostiuk.github.io/particle-divide/)
 
 ## Getting Started
 
 ### Installation
 * [Install Elm](https://guide.elm-lang.org/install.html) if you haven't already
 * ```clone``` the repository
-* ```cd`` into the directory
+* ```cd``` into the directory
 * run ```elm reactor```
 * Open a browser and navigate to <http://localhost:8000/>. If you used a different port with ```--port=XXXX``` then navigate there instead.
 * Have Fun!
-* The code for _Particle Divide_ can be found in _src/_ folder
-* If you want to export the elm file as .html then run ```elm make src/particledivide.elm --output nameOfFile.html```
+
+
+The code for _Particle Divide_ can be found in _src/_ folder
+If you want to export the elm file as .html then run ```elm make src/particledivide.elm --output nameOfFile.html```
 
 ### How To Play
 The goal of __Particle Divide__ is to draw a line that splits the screen in two, dividing the number of particles equally. Doing so will grant you access to the next level!
