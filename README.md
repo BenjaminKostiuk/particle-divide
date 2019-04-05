@@ -1,4 +1,4 @@
-# Elm App : Particle Divide!
+# Particle Divide!
 Can you divide the particles equally in this fun Elm app made with the [Graphic SVG Package](https://package.elm-lang.org/packages/MacCASOutreach/graphicsvg/latest/GraphicSVG)?
 
 Can you make it past level 20? [Try for yourself!](https://benjaminkostiuk.github.io/particle-divide/)
