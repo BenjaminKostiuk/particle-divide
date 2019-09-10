@@ -48,6 +48,7 @@ Particle Divide is made possible with the [GraphicSVG Package](https://package.e
 ### Authors
 * Benjamin Kostiuk
 
-
+### License
+See [LICENSE](LICENSE).
 
 
